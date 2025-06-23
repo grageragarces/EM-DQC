@@ -1,0 +1,105 @@
+
+import mitiq
+
+mitiq.SUPPORTED_PROGRAM_TYPES.keys()
+
+frontend = "qiskit"
+
+
+use:
+def from_qasm(qasm: QASMType) -> cirq.Circuit:
+    """Returns a Mitiq circuit equivalent to the input QASM string.
+
+    Args:
+        qasm: QASM string to convert to a Mitiq circuit.
+
+    Returns:
+        Mitiq circuit representation equivalent to the input QASM string.
+    """
+    qasm = _remove_qasm_barriers(qasm)
+    return circuit_from_qasm(qasm)
+
+circuit = from_qasm(file) # from corresponding qasm file in circuits/MQTBench, see files availale bellow
+--------------------------------------------------------------
+prefixes = [
+    "ae_indep_qiskit", "ae_nativegates_ibm_qiskit_opt3",
+    "dj_indep_qiskit", "dj_nativegates_ibm_qiskit_opt3",
+    "ghz_indep_qiskit", "ghz_nativegates_ibm_qiskit_opt3",
+    "graphstate_nativegates_ibm_qiskit_opt3",
+    "grover-noancilla_nativegates_ibm_qiskit_opt3",
+    "grover-v-chain_indep_qiskit", "grover-v-chain_nativegates_ibm_qiskit_opt3",
+    "portfolioqaoa_indep_qiskit", "portfolioqaoa_nativegates_ibm_qiskit_opt3",
+    "portfoliovqe_indep_qiskit", "portfoliovqe_nativegates_ibm_qiskit_opt3",
+    "qaoa_indep_qiskit", "qaoa_nativegates_ibm_qiskit_opt3",
+    "qft_indep_qiskit", "qft_nativegates_ibm_qiskit_opt3",
+    "qftentangled_indep_qiskit", "qftentangled_nativegates_ibm_qiskit_opt3",
+    "qnn_indep_qiskit", "qnn_nativegates_ibm_qiskit_opt3",
+    "qpeexact_indep_qiskit", "qpeexact_nativegates_ibm_qiskit_opt3",
+    "qpeinexact_indep_qiskit", "qpeinexact_nativegates_ibm_qiskit_opt3",
+    "qwalk-noancilla_indep_qiskit", "qwalk-noancilla_nativegates_ibm_qiskit_opt3",
+    "qwalk-v-chain_indep_qiskit", "qwalk-v-chain_nativegates_ibm_qiskit_opt3",
+    "random_indep_qiskit", "random_nativegates_ibm_qiskit_opt3",
+    "realamprandom_indep_qiskit", "realamprandom_nativegates_ibm_qiskit_opt3",
+    "su2random_indep_qiskit", "su2random_nativegates_ibm_qiskit_opt3",
+    "twolocalrandom_indep_qiskit", "twolocalrandom_nativegates_ibm_qiskit_opt3",
+    "vqe_indep_qiskit", "vqe_nativegates_ibm_qiskit_opt3",
+    "wstate_indep_qiskit", "wstate_nativegates_ibm_qiskit_opt3"
+]
+
+all_tasks = [(prefix, n) for prefix in prefixes for n in range(1, 131)]
+
+with open(output_file, mode='w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(['Algorithm', 'Instance', 'Partitions', 'Cut Cost', 'Partition Sizes'])
+
+    for prefix, n in tqdm(all_tasks, desc="Processing QASM files", unit="file"):
+        filename = f"{prefix}_{n}.qasm"
+--------------------------------------------------------------
+
+#execute clean: 
+import numpy as np
+from cirq import DensityMatrixSimulator, depolarize
+from mitiq.interface import convert_to_mitiq
+
+def execute(circuit, noise_level=0.01):
+    """Returns Tr[ρ |0⟩⟨0|] where ρ is the state prepared by the circuit
+    executed with depolarizing noise.
+    """
+    # Replace with code based on your frontend and backend.
+    mitiq_circuit, _ = convert_to_mitiq(circuit)
+    noisy_circuit = mitiq_circuit.with_noise(depolarize(p=noise_level))
+    rho = DensityMatrixSimulator().simulate(noisy_circuit).final_density_matrix
+    return rho[0, 0].real
+
+#then execute with local mitigation with zne, and pec
+
+from mitiq import zne, pec
+
+mitigated_result_zne = zne.execute_with_zne(circuit, execute)
+mitigated_result_pec = pec.execute_with_pec(circuit, execute)
+
+print(f"Error with mitigation (ZNE): {abs(ideal_value - mitigated_result_zne):.{3}}
+print(f"Error with mitigation (PEC): {abs(ideal_value - mitigated_result_pec):.{3}}")
+
+# print these things out into a csv file that saves into columns:
+1) name alg 2) size alg aka n from 2-130 3) error noise 4) error zne 5) error pec 
+ideally save this file within the folder "results" in the same directory as this file
+
+
+
+-------- after this add partitioning version --------
+such that we introduce the cutting
+followed by primitive injections
+-> different noise injectins local and global
+-> mitigation set up separately for coms and local 
+
+we must recognise what we are cutting through
+map this to a table of a corresponding primitive
+see this as the coms chunck
+sim stuff as if it was a puzzle of different pieces
+
+
+NOTE:
+-----
+pip install --upgrade pip setuptools wheel
+pip install mitiq qiskit qiskit-aer
